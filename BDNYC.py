@@ -3,7 +3,7 @@
 """
 BDNYC.py
 
-Last updated by: Alejo 6/14/2012
+Last updated by: Dan 6/18/2012
 
 The code underlying our BDNYC Python Database, based at AMNH.
 """
@@ -39,11 +39,73 @@ class BDNYCData:
     def __init__(self):
         self.targets = []
     
+    def res_initializer(self):
+        """Looks at each target in the database and initilizes the keys at the 
+        resolution level. So, for instance, if med and phot are the only 2 resolutions
+        present, it will initialize high and low as empty dictionaries."""
+        
+        for target in self.targets:
+            try:
+                Buffer = target.opt['low']
+            except KeyError:
+                target.opt['low'] = {}
+            try:
+                Buffer = target.opt['med']
+            except KeyError:
+                target.opt['med'] = {}
+            try:
+                Buffer = target.opt['high']
+            except KeyError:
+                target.opt['high'] = {}
+            try:
+                Buffer = target.opt['phot']
+            except KeyError:
+                target.opt['phot'] = {}
+            
+            try:
+                Buffer = target.nir['low']
+            except KeyError:
+                target.nir['low'] = {}
+            try:
+                Buffer = target.nir['med']
+            except KeyError:
+                target.nir['med'] = {}
+            try:
+                Buffer = target.nir['high']
+            except KeyError:
+                target.nir['high'] = {}
+            try:
+                Buffer = target.nir['phot']
+            except KeyError:
+                target.nir['phot'] = {}
+            
+            try:
+                Buffer = target.mir['low']
+            except KeyError:
+                target.mir['low'] = {}
+            try:
+                Buffer = target.mir['med']
+            except KeyError:
+                target.mir['med'] = {}
+            try:
+                Buffer = target.mir['high']
+            except KeyError:
+                target.mir['high'] = {}
+            try:
+                Buffer = target.mir['phot']
+            except KeyError:
+                target.mir['phot'] = {}
+        
+        print 'RES INITIALIZER: Database updated but unsaved. Please save changes when finished.'
+        return
+    
     def addTarget(self, targetObj):
         """
         Adds a new target object to the database.
         """
         self.targets.append(targetObj)
+        self.res_initializer()
+        return
     
     def matchUNum(self, unum, array=False, index=True):
         """
@@ -74,6 +136,7 @@ class BDNYCData:
         for i in self.targets[ind].nir['high'][instr][date].keys():
             pylab.plot(self.targets[ind].nir['high'][instr][date][i]['wl'], \
             self.targets[ind].nir['high'][instr][date][i]['flux'])
+        return
     
     def overPlot(self, unum, med_instr, h_instr, dateM, dateH):
         ind = self.matchUNum(unum)
@@ -83,6 +146,7 @@ class BDNYCData:
         for j in self.targets[ind].nir['med'][med_instr][dateM].keys():
             pylab.plot(self.targets[ind].nir['med'][med_instr][dateM][j]['wl'], \
             self.targets[ind].nir['med'][med_instr][dateM][j]['flux'], 'r')
+        return
     
     def dateList(self, obsType, res, surv_instr):
         """
