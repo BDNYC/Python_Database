@@ -99,12 +99,13 @@ class BDNYCData:
         print 'RES INITIALIZER: Database updated but unsaved. Please save changes when finished.'
         return
     
-    def addTarget(self, targetObj):
+    def addTarget(self, targetObj, init=True):
         """
         Adds a new target object to the database.
         """
         self.targets.append(targetObj)
-        self.res_initializer()
+        if init:
+            self.res_initializer()
         return
     
     def matchUNum(self, unum, array=False, index=True):
