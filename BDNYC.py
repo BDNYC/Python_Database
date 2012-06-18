@@ -3,13 +3,11 @@
 """
 BDNYC.py
 
-Last updated by: Dan 6/14/2012
+Last updated by: Alejo 6/14/2012
 
 The code underlying our BDNYC Python Database, based at AMNH.
 """
 
-import sys
-import os
 import pylab
 import numpy as np
 import pdb
@@ -180,7 +178,7 @@ class BDNYCData:
                 [order]['wl'], self.targets[specInd].opt['high'][instr][date][order]['flux']])
                 if snr:
                     specArr = np.append(specArr, [self.targets[specInd].opt['high'][instr]\
-                    [date][order]['snr'], axis=0)
+                    [date][order]['snr']], axis=0)
                 return specArr
             
             if res=='med':
