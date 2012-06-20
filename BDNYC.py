@@ -1,21 +1,87 @@
 #!/usr/bin/env python
 # encoding: utf-8
+
+# I ++++++++++++++++++++++ GENERAL DOCUMENTATION ++++++++++++++++++++++++++++++
 """
-BDNYC.py
+The module **BDNYC** is a set of classes and methods to handle data from the BDNYC database, which is stored in the BDNYCData.txt file.
 
-Last updated by: Dan 6/18/2012
+**The BDNYC Database**
+The structure of the database consists of two types of class instances, with the actual data in the form of nested dictionaries.
 
-The code underlying our BDNYC Python Database, based at AMNH.
+**The Database Classes**
+An instance of the BDNYCData class is created to hold the whole database. This object holds instances of the Target class in the form of a Python list. The BDNYCData instance also includes methods to handle data from the Target instances.
+
+An instance of the Target class corresponds to a target in the sky. Each target has six attributes that describe it. They are 'name', 'unum', 'ra', 'dec', 'sptype', and 'standard'. The unique identifier is unum. All these are described in detail in the Target class documentation.
+
+Each target also has three dictionaries in the form of attributes, where spectra and photometry are stored. They are 'opt', 'nir', and 'mir'. The keys for each one of these dictionaries are ['high', 'med', 'low', 'phot'], which refer to spectral resolution levels and photometries.
+
+Each one of these keys in turn refer to a dictionary as well. For the 'high', 'med', and 'low' dictionaries, which store spectra, the keys are the instruments.
+
+Each instrument in turn is a dictionary as well. Its keys are the dates of observation.
+
+Each observation in turn is a dictionary as well. Its keys are ['wl', 'flux', 'uncertainty', 'snr'].
+
+For the 'phot' dictionary, its keys are the surveys. Each survey in turn is a dictionary as well. Its keys are the bands. Each band in turn is a dictionary as well. Its keys are ['val', 'err'].
+
+**New Targets**
+Whenever a new instance of Target is added to the database, two levels of dictionaries are initialized as empty. That is, a target will have the following, regardless of the data that is added:
+*target*.opt['high':{}, 'med':{}, 'low':{}, 'phot':{}]
+*target*.nir['high':{}, 'med':{}, 'low':{}, 'phot':{}]
+*target*.mir['high':{}, 'med':{}, 'low':{}, 'phot':{}]
+*target*.phot[{}]
+
+
+:Authors:
+	Dan Feldman, Alejandro N |uacute| |ntilde| ez
+
+:Date:
+    2012/06/20, Alejo
+
+:Repository:
+    https://github.com/BDNYC/Python_Database
+
+:Contact: bdnyc.labmanager@gmail.com
+     
+:Requirements:
+    The following modules should already be installed in your computer: `asciidata`_, `matplotlib`_, `numpy`_, 'pyfits'_.
 """
 
-import pylab
-import numpy as np
+# II ++++++++++++++++++++++++ EXTERNAL MODULES ++++++++++++++++++++++++++++++++
+# External Python modules used by functions and classes
+
+# Basic Python modules
 import pdb
 
+# Third party Python modules
+import matplotlib.pyplot as plt
+import numpy as np
+
+# III +++++++++++++++++++++++ PUBLIC CLASSES ++++++++++++++++++++++++++++++++++
+# Classes meant to be used by end users. Capitalize class names.
 class Target:
     """
-    An object containing data for a specific target object to be put into
-    the brown dwarf database. This flavor produces one extra level of nesting.
+    An object containing data for a specific target object to be put into the BDNYC database. This flavor produces one extra level of nesting.
+    
+    Parameters:
+    
+    *name*
+      A string with any known name(s) for the target.
+    *unum*
+      A string with the U-number of the target. It acts as the unique identifier (e.g. "U10000".)
+    *ra*
+      A string containing the right ascension of the target (e.g. 13 25 10.3).
+    *dec*
+      A string containing the declination of the target, (e.g. +13 25 10.3).
+    *sptype*
+      A string containing the spectral type of the target. It can include detailed descriptors (e.g. "L1.5:b").
+    *opt*
+      A dictionary containing optical spectra and photometry. The keys for this dictionary are described in the general documentation.
+    *nir*
+      A dictionary containing near-infrared spectra and photometry. The keys for this dictionary are described in the general documentation.
+    *mir*
+      A dictionary containing mid-infrared spectra and photometry. The keys for this dictionary are described in the general documentation.
+    *standard*
+      A string identifying whether the target is a standard or a candidate standard. It can be 'Yes' or 'No'.
     """
     
     def __init__(self,name,unum,ra,dec,sptype,opt,nir,mir,standard=None):
@@ -33,135 +99,40 @@ class Target:
 
 class BDNYCData:
     """
-    Class to hold all of the target objects and methods for Brown Dwarf analysis.
+    An object that holds all of the targets (i.e. Target instances) —as a Python list— and methods for data handling.
     """
     
     def __init__(self):
         self.targets = []
     
-    def res_initializer(self):
-        """Looks at each target in the database and initilizes the keys at the 
-        resolution level. So, for instance, if med and phot are the only 2 resolutions
-        present, it will initialize high and low as empty dictionaries."""
-        
-        for target in self.targets:
-            try:
-                Buffer = target.opt['low']
-            except KeyError:
-                target.opt['low'] = {}
-            try:
-                Buffer = target.opt['med']
-            except KeyError:
-                target.opt['med'] = {}
-            try:
-                Buffer = target.opt['high']
-            except KeyError:
-                target.opt['high'] = {}
-            try:
-                Buffer = target.opt['phot']
-            except KeyError:
-                target.opt['phot'] = {}
-            
-            try:
-                Buffer = target.nir['low']
-            except KeyError:
-                target.nir['low'] = {}
-            try:
-                Buffer = target.nir['med']
-            except KeyError:
-                target.nir['med'] = {}
-            try:
-                Buffer = target.nir['high']
-            except KeyError:
-                target.nir['high'] = {}
-            try:
-                Buffer = target.nir['phot']
-            except KeyError:
-                target.nir['phot'] = {}
-            
-            try:
-                Buffer = target.mir['low']
-            except KeyError:
-                target.mir['low'] = {}
-            try:
-                Buffer = target.mir['med']
-            except KeyError:
-                target.mir['med'] = {}
-            try:
-                Buffer = target.mir['high']
-            except KeyError:
-                target.mir['high'] = {}
-            try:
-                Buffer = target.mir['phot']
-            except KeyError:
-                target.mir['phot'] = {}
-        
-        print 'RES INITIALIZER: Database updated but unsaved. Please save changes when finished.'
-        return
-    
     def addTarget(self, targetObj, init=True):
         """
-        Adds a new target object to the database.
+        Add a new target to the database.
         """
         self.targets.append(targetObj)
         if init:
             self.res_initializer()
         return
     
-    def matchUNum(self, unum, array=False, index=True):
-        """
-        Matches a U# to a target so the code knows which object you are 
-        referring to. This function returns the array of U#s, the index of 
-        the target object in question, or both, in that order.
-        """
-        
-        uNumbers = np.array([], dtype='S6')
-        for target in self.targets:
-            uNumbers = np.append(uNumbers, target.unum)
-        try:
-            uNumInd = np.where(uNumbers==unum)[0][0]
-        except IndexError:
-            raise ValueError('matchUNum: U Number not in database. Could not match')
-        if (array==False and index==True):
-            return uNumInd
-        elif (array==True and index==False):
-            return uNumbers
-        elif (array==True and index==True):
-            return uNumbers, uNumInd
-        else:
-            print "matchUNum: You really want to have nothing returned?"
-            return
-    
-    def plotOrders(self, unum, instr, date):
-        ind = self.matchUNum(unum)
-        for i in self.targets[ind].nir['high'][instr][date].keys():
-            pylab.plot(self.targets[ind].nir['high'][instr][date][i]['wl'], \
-            self.targets[ind].nir['high'][instr][date][i]['flux'])
-        return
-    
-    def overPlot(self, unum, med_instr, h_instr, dateM, dateH):
-        ind = self.matchUNum(unum)
-        for i in self.targets[ind].nir['high'][h_instr][dateH].keys():
-            pylab.plot(self.targets[ind].nir['high'][h_instr][dateH][i]['wl'], \
-            self.targets[ind].nir['high'][h_instr][dateH][i]['flux'], 'b')
-        for j in self.targets[ind].nir['med'][med_instr][dateM].keys():
-            pylab.plot(self.targets[ind].nir['med'][med_instr][dateM][j]['wl'], \
-            self.targets[ind].nir['med'][med_instr][dateM][j]['flux'], 'r')
-        return
-    
     def dateList(self, obsType, res, surv_instr):
         """
-        Sort through the dates and list all targets with observations on said 
-        date. obsType is opt, nir, or mir. res is what type of data (i.e. low, med,
-        high). surv_instr is the survey or instrument observed with.
+        Sort through the dates and list all targets with observations on given 
+        date.
+        
+        *obsType*
+          The spectral range of observation. It can be 'opt', 'nir', or 'mir'.
+        *res*
+          The resolution of observation. It can be 'low', 'med', or 'high'.
+        *surv_instr*
+          The name of survey or instrument of observation.
         """
         
         dates = {}
         if obsType != 'nir' and obsType != 'mir' and obsType != 'opt':
-            print "Invalid Observation Type. Must be opt, nir, or mir!"
+            print "Invalid Observation Type. Must be opt, nir, or mir."
             return
         if res != 'low' and res != 'med' and res != 'high':
-            print "Invalid Resolution Type. Must be low, med, or high!"
+            print "Invalid Resolution Type. Must be low, med, or high."
             return
         
         # Build the dates dictionary by looping through all existing dates and making keys
@@ -221,96 +192,356 @@ class BDNYCData:
     
     def giveSpectrum(self, unum=None, otype=None, res=None, instr=None, date=None, snr=False, order=None, Filter=None):
         """
-        Function to output a spectrum in a numpy array as [wl, flux, snr(optional)]
-        The necessary info about the spectrum must be provided as keyword arguments.
+        Output a spectrum in a numpy array as [wl, flux, snr(optional)]. The necessary info about the spectrum must be provided as keyword arguments.
         
-        The kwargs are:
-        unum   = U number associated with the target whose spectrum you want
-        otype  = observation type, i.e. opt, nir, or mir
-        res    = the resolution of the spectrum, i.e. low, med, or high
-        instr  = the instrument or survey, e.g. NIRSPEC, Spex, Phoenix
-        date   = the observation date, given in format YYYYmonDD, e.g. 2009jan23
-        snr    = whether or not to include the snr array. This is True or False
-        order  = if high resolution desired, then you must specify the order
-        filter = if medium resolution is desired, then you must specify the filter.
+        *unum*
+          U number associated with the target whose spectrum you want (e.g. 'U10000').
+        *otype*
+          Observation type. It can be 'opt', 'nir', or 'mir'.
+        *res*
+          Resolution of the spectrum. It can be 'low', 'med', or 'high'.
+        *instr*
+          Instrument or survey (e.g. NIRSPEC).
+        *date*
+          Observation date (e.g. 2009jan23).
+        *snr*
+          Boolean, whether or not to include the snr array.
+        *order*
+          Integer. If high resolution desired, you must specify the order (e.g. 38).
+        *filter*
+          If medium or low resolution desired, you must specify the filter (e.g. 'JHK').
         """
         
         specInd = self.matchUNum(unum)
         if otype=='opt':
             
             if res=='high':
-                specArr = np.array([self.targets[specInd].opt['high'][instr][date]\
-                [order]['wl'], self.targets[specInd].opt['high'][instr][date][order]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].opt['high'] \
+                                           [instr][date][order]['wl'], \
+                              self.targets[specInd].opt['high'] \
+                                           [instr][date][order]['flux']])
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].opt['high'][instr]\
-                    [date][order]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].opt['high'] \
+                                           [instr][date][order]['snr']], axis=0)
                 return specArr
             
             if res=='med':
-                specArr = np.array([self.targets[specInd].opt['med'][instr][date][Filter]\
-                ['wl'], self.targets[specInd].opt['med'][instr][date][Filter]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].opt['med'] \
+                                           [instr][date][Filter]['wl'], \
+                              self.targets[specInd].opt['med'] \
+                                           [instr][date][Filter]['flux']])
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].opt['med'][instr]\
-                    [date][Filter]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].opt['med'] \
+                                          [instr][date][Filter]['snr']], axis=0)
                 return specArr
             
             if res=='low':
-                specArr = np.array([self.targets[specInd].opt['low'][instr][date]\
-                ['wl'], self.targets[specInd].opt['low'][instr][date]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].opt['low'] \
+                                           [instr][date]['wl'], \
+                              self.targets[specInd].opt['low'] \
+                                         [instr][date][Filter]['flux']], axis=0)
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].opt['low'][instr]\
-                    [date]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].opt['low'] \
+                                          [instr][date][Filter]['snr']], axis=0)
                 return specArr
         
-        if otype=='nir':
+        elif otype=='nir':
             
             if res=='high':
-                specArr = np.array([self.targets[specInd].nir['high'][instr][date]\
-                [order]['wl'], self.targets[specInd].nir['high'][instr][date][order]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].nir['high'] \
+                                           [instr][date][order]['wl'], \
+                              self.targets[specInd].nir['high'] \
+                                           [instr][date][order]['flux']])
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].nir['high'][instr]\
-                    [date][order]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].nir['high'] \
+                                           [instr][date][order]['snr']], axis=0)
                 return specArr
             
             if res=='med':
-                specArr = np.array([self.targets[specInd].nir['med'][instr][date][Filter]\
-                ['wl'], self.targets[specInd].nir['med'][instr][date][Filter]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].nir['med'] \
+                                           [instr][date][Filter]['wl'], \
+                              self.targets[specInd].nir['med'] \
+                                           [instr][date][Filter]['flux']])
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].nir['med'][instr]\
-                    [date][Filter]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].nir['med'] \
+                                          [instr][date][Filter]['snr']], axis=0)
                 return specArr
             
             if res=='low':
-                specArr = np.array([self.targets[specInd].nir['low'][instr][date]\
-                ['wl'], self.targets[specInd].nir['low'][instr][date]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].nir['low'] \
+                                           [instr][date]['wl'], \
+                              self.targets[specInd].nir['low'] \
+                                         [instr][date][Filter]['flux']], axis=0)
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].nir['low'][instr]\
-                    [date]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].nir['low'] \
+                                          [instr][date][Filter]['snr']], axis=0)
                 return specArr
         
-        if otype=='mir':
+        elif otype=='mir':
             
             if res=='high':
-                specArr = np.array([self.targets[specInd].mir['high'][instr][date]\
-                [order]['wl'], self.targets[specInd].mir['high'][instr][date][order]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].mir['high'] \
+                                           [instr][date][order]['wl'], \
+                              self.targets[specInd].mir['high'] \
+                                           [instr][date][order]['flux']])
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].mir['high'][instr]\
-                    [date][order]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].mir['high'] \
+                                           [instr][date][order]['snr']], axis=0)
                 return specArr
             
             if res=='med':
-                specArr = np.array([self.targets[specInd].mir['med'][instr][date][Filter]\
-                ['wl'], self.targets[specInd].mir['med'][instr][date][Filter]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].mir['med'] \
+                                           [instr][date][Filter]['wl'], \
+                              self.targets[specInd].mir['med'] \
+                                           [instr][date][Filter]['flux']])
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].mir['med'][instr]\
-                    [date][Filter]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].mir['med'] \
+                                          [instr][date][Filter]['snr']], axis=0)
                 return specArr
             
             if res=='low':
-                specArr = np.array([self.targets[specInd].mir['low'][instr][date]\
-                ['wl'], self.targets[specInd].mir['low'][instr][date]['flux']])
+                specArr = \
+                    np.array([self.targets[specInd].mir['low'] \
+                                           [instr][date]['wl'], \
+                              self.targets[specInd].mir['low'] \
+                                         [instr][date][Filter]['flux']], axis=0)
                 if snr:
-                    specArr = np.append(specArr, [self.targets[specInd].mir['low'][instr]\
-                    [date]['snr']], axis=0)
+                    specArr = np.append(specArr, \
+                              [self.targets[specInd].mir['low'] \
+                                          [instr][date][Filter]['snr']], axis=0)
                 return specArr
+    
+    def matchUNum(self, unum, array=False, index=True, verbose=False):
+        """
+        Match a U-number to a target so the code knows which object you are referring to. It returns the array of U-numbers, the index of the target object in question, or both, in that order.
+        """
+        
+        uNumbers = np.array([], dtype='S6')
+        for target in self.targets:
+            uNumbers = np.append(uNumbers, target.unum)
+        try:
+            uNumInd = np.where(uNumbers==unum)[0][0]
+        except IndexError:
+            if verbose:
+                print 'matchUNum: U-number not in database.'
+            return
+#            raise ValueError('matchUNum: U Number not in database. Could not match')
+        if (array==False and index==True):
+            return uNumInd
+        elif (array==True and index==False):
+            return uNumbers
+        elif (array==True and index==True):
+            return uNumbers, uNumInd
+        else:
+            print "matchUNum: You really want to have nothing returned?"
+            return
+    
+    def overPlot(self, unum, med_instr, h_instr, dateM, dateH):
+        """
+        Needs documentation.
+        """
+        
+        ind = self.matchUNum(unum)
+        for i in self.targets[ind].nir['high'][h_instr][dateH].keys():
+            plt.plot(self.targets[ind].nir['high'][h_instr][dateH][i]['wl'], \
+            self.targets[ind].nir['high'][h_instr][dateH][i]['flux'], 'b')
+        for j in self.targets[ind].nir['med'][med_instr][dateM].keys():
+            plt.plot(self.targets[ind].nir['med'][med_instr][dateM][j]['wl'], \
+            self.targets[ind].nir['med'][med_instr][dateM][j]['flux'], 'r')
+        return
+    
+    def plotOrders(self, unum, instr, date):
+        """
+        Needs documentation.
+        """
+        
+        ind = self.matchUNum(unum)
+        for i in self.targets[ind].nir['high'][instr][date].keys():
+            plt.plot(self.targets[ind].nir['high'][instr][date][i]['wl'], \
+            self.targets[ind].nir['high'][instr][date][i]['flux'])
+        return
+    
+    def res_initializer(self):
+        """
+        Look at each target in the database and initilizes the keys at the resolution level. So, for instance, if 'med' and 'phot' are the only two resolutions present, it will initialize 'high' and 'low' as empty dictionaries.
+        """
+        
+        for target in self.targets:
+            try:
+                Buffer = target.opt['low']
+            except KeyError:
+                target.opt['low'] = {}
+            try:
+                Buffer = target.opt['med']
+            except KeyError:
+                target.opt['med'] = {}
+            try:
+                Buffer = target.opt['high']
+            except KeyError:
+                target.opt['high'] = {}
+            try:
+                Buffer = target.opt['phot']
+            except KeyError:
+                target.opt['phot'] = {}
+            
+            try:
+                Buffer = target.nir['low']
+            except KeyError:
+                target.nir['low'] = {}
+            try:
+                Buffer = target.nir['med']
+            except KeyError:
+                target.nir['med'] = {}
+            try:
+                Buffer = target.nir['high']
+            except KeyError:
+                target.nir['high'] = {}
+            try:
+                Buffer = target.nir['phot']
+            except KeyError:
+                target.nir['phot'] = {}
+            
+            try:
+                Buffer = target.mir['low']
+            except KeyError:
+                target.mir['low'] = {}
+            try:
+                Buffer = target.mir['med']
+            except KeyError:
+                target.mir['med'] = {}
+            try:
+                Buffer = target.mir['high']
+            except KeyError:
+                target.mir['high'] = {}
+            try:
+                Buffer = target.mir['phot']
+            except KeyError:
+                target.mir['phot'] = {}
+        
+        print 'RES INITIALIZER: Database updated but unsaved. ' \
+              + 'Please save changes when finished.'
+        return
+    
+    def show_data(self, unum, dump=False):
+        '''
+        Show all existing data in database for a target.
+        
+        *unum*
+           String with the U-number of target (e.g. 'U10000').
+         *dump*
+           Boolean, whether to return output on a list. If False, show_data will only print existing data in terminal window.
+        '''
+        
+        # 1. Initialize variables
+        resolutions = ['high', 'med', 'low']
+        
+        # 2. Check for correct input
+        try:
+            length = len(unum)
+        except TypeError:
+            print 'U-number must be a string. Try again.'
+            return
+        
+        if length != 6:
+            print 'U-number is invalid. Try again.'
+            return
+        
+        # 3. Check if target with requested U-number exists
+        idxU = self.matchUNum(unum, verbose=False)
+        if idxU is None:
+            print 'U-number not in database.'
+            return
+        
+        else:
+            curTgt = self.targets[idxU]
+        
+        # 4. Create structure with all data available for target
+        data = []
+        
+        # 4.1 Add target attributes to output
+        data.append(['unum',unum])
+        data.append(['index', idxU])
+        if curTgt.name is not None:
+            data.append(['name', curTgt.name])
+        data.append(['sptype', curTgt.sptype])
+        data.append(['ra', curTgt.ra])
+        data.append(['dec', curTgt.dec])
+        data.append(['standard', curTgt.standard])
+        
+        # 4.2 Add spectra & photometry indicators to output
+        # OPT range spectra
+        rng = 'opt'
+        for res in resolutions:
+            specs = curTgt.opt[res]
+            if specs != {}:
+                for instr in specs.keys():
+                    for date in specs[instr]:
+                        data.append([rng, res, instr, date])
+        # OPT range photometry
+        photos = curTgt.opt['phot']
+        if photos != {}:
+            for survey in photos.keys():
+                bands = []
+                for band in photos[survey].keys():
+                    bands.append(band)
+                data.append([rng, 'phot', survey, bands])
+        
+        # NIR range spectra
+        rng = 'nir'
+        for res in resolutions:
+            specs = curTgt.nir[res]
+            if specs != {}:
+                for instr in specs.keys():
+                    for date in specs[instr]:
+                        data.append([rng, res, instr, date])
+        # NIR range photometry
+        photos = curTgt.nir['phot']
+        if photos != {}:
+            for survey in photos.keys():
+                bands = []
+                for band in photos[survey].keys():
+                    bands.append(band)
+                data.append([rng, 'phot', survey, bands])
+        
+        # MIR range spectra
+        rng = 'mir'
+        for res in resolutions:
+            specs = curTgt.mir[res]
+            if specs != {}:
+                for instr in specs.keys():
+                    for date in specs[instr]:
+                        data.append([rng, res, instr, date])
+        # MIR range photometry
+        photos = curTgt.mir['phot']
+        if photos != {}:
+            for survey in photos.keys():
+                bands = []
+                for band in photos[survey].keys():
+                    bands.append(band)
+                data.append([rng, 'phot', survey, bands])
+        
+        # 5. Print output
+        for row in data:
+            print row
+        
+        if dump:
+            return data
+        else:
+            return
     
