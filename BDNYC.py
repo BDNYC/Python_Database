@@ -536,12 +536,11 @@ class BDNYCData:
                     bands.append(band)
                 data.append([rng, 'phot', survey, bands])
         
-        # 5. Print output
-        for row in data:
-            print row
-        
+        # 5. Give output
         if dump:
             return data
         else:
+            for row in data:
+                print row
             return
     
