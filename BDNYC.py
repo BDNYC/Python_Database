@@ -34,7 +34,7 @@ Whenever a new instance of Target is added to the database, two levels of dictio
 
 
 :Authors:
-    Dan Feldman, Alejandro N |uacute| |ntilde| ez
+	Dan Feldman, Alejandro N |uacute| |ntilde| ez
 
 :Date of Last Update:
     2012/06/27, Dan
@@ -110,7 +110,12 @@ class BDNYCData:
     
     def addTarget(self, targetObj, init=True):
         """
-        Add a new target to the database. If init is True, it will run the res_initializer() method after the target is added.
+        Add a new target to the database.
+        
+        *targetObj*
+          The instance of the Target class being added to the database.
+        *init*
+          Boolean: If True, runs the res_initializer function after the target is added.
         """
         self.targets.append(targetObj)
         if init:
@@ -332,7 +337,16 @@ class BDNYCData:
     
     def matchUNum(self, unum, array=False, index=True, verbose=False):
         """
-        Match a U-number to a target so the code knows which object you are referring to. It returns the array of U-numbers, the index of the target object in question, or both, in that order.
+        Match a U number to a target so the code knows which object you are referring to. It returns the array of U numbers, the index of the target object in question, or both, in that order.
+        
+        *unum*
+          U number associated with the target whose spectrum you want (e.g. 'U10000').
+        *array*
+          Boolean: If True, returns an array containing all of the U numbers in the database.
+        *index*
+          Boolean: If True, returns the index associated with the given U number.
+        *verbose*
+          Boolean: If True, prints warning messages.
         """
         
         uNumbers = np.array([], dtype='S6')
@@ -352,12 +366,20 @@ class BDNYCData:
         elif (array==True and index==True):
             return uNumbers, uNumInd
         else:
-            print "matchUNum: You really want to have nothing returned?"
+            if verbose:
+                print "matchUNum: You really want to have nothing returned?"
             return
     
     def plotOrders(self, unum, instr, date):
         """
         Plots all of the orders for a given high-resolution spectrum on a single graph.
+        
+        *unum*
+          U number associated with the target whose spectrum you want (e.g. 'U10000').
+        *instr*
+          Instrument or survey (e.g. NIRSPEC).
+        *date*
+          Observation date (e.g. 2009jan23).
         """
         
         ind = self.matchUNum(unum)
