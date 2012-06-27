@@ -17,11 +17,13 @@ Each target also has three dictionaries in the form of attributes, where spectra
 
 Each one of these keys in turn refer to a dictionary as well. For the 'high', 'med', and 'low' dictionaries, which store spectra, the keys are the instruments.
 
-Each instrument in turn is a dictionary as well. Its keys are the dates of observation.
+Each instrument in turn is a dictionary as well. Its keys are the dates of observation. If a date is not known, the key will be '0000xxx00'.
 
 Each observation in turn is a dictionary as well. Its keys are ['wl', 'flux', 'uncertainty', 'snr'].
 
 For the 'phot' dictionary, its keys are the surveys. Each survey in turn is a dictionary as well. Its keys are the bands. Each band in turn is a dictionary as well. Its keys are ['val', 'err'].
+
+For full documentation on the structure tree of the BDNYC database, you can refer to the Google Presentation named 'Python Database Structure'.
 
 **New Targets**
 Whenever a new instance of Target is added to the database, two levels of dictionaries are initialized as empty. That is, a target will have the following, regardless of the data that is added:
@@ -32,18 +34,19 @@ Whenever a new instance of Target is added to the database, two levels of dictio
 
 
 :Authors:
-	Dan Feldman, Alejandro N |uacute| |ntilde| ez
+    Dan Feldman, Alejandro N |uacute| |ntilde| ez
 
-:Date:
-    2012/06/20, Alejo
+:Date of Last Update:
+    2012/06/27, Dan
 
 :Repository:
     https://github.com/BDNYC/Python_Database
 
-:Contact: bdnyc.labmanager@gmail.com
+:Contact: 
+    bdnyc.labmanager@gmail.com
      
 :Requirements:
-    The following modules should already be installed in your computer: `asciidata`_, `matplotlib`_, `numpy`_, 'pyfits'_.
+    The following modules should already be installed in your computer: `matplotlib`_, `numpy`_.
 """
 
 # II ++++++++++++++++++++++++ EXTERNAL MODULES ++++++++++++++++++++++++++++++++
@@ -65,15 +68,15 @@ class Target:
     Parameters:
     
     *name*
-      A string with any known name(s) for the target.
+      A string with any known name(s) for the target. If there is no common name associated with the target, please use None.
     *unum*
       A string with the U-number of the target. It acts as the unique identifier (e.g. "U10000".)
     *ra*
-      A string containing the right ascension of the target (e.g. 13 25 10.3).
+      A string containing the right ascension of the target (e.g. 13 25 10.3). If unknown, please use placeholders ('XX XX XX.X').
     *dec*
-      A string containing the declination of the target, (e.g. +13 25 10.3).
+      A string containing the declination of the target, (e.g. +13 25 10.3). If unknown, please use placeholders ('+XX XX XX.X').
     *sptype*
-      A string containing the spectral type of the target. It can include detailed descriptors (e.g. "L1.5:b").
+      A string containing the spectral type of the target. It can include detailed descriptors (e.g. "L1.5:b"). If spectral type is unknown, use the placeholder 'XX'.
     *opt*
       A dictionary containing optical spectra and photometry. The keys for this dictionary are described in the general documentation.
     *nir*
@@ -84,7 +87,7 @@ class Target:
       A string identifying whether the target is a standard or a candidate standard. It can be 'Yes' or 'No'.
     """
     
-    def __init__(self,name,unum,ra,dec,sptype,opt,nir,mir,standard=None):
+    def __init__(self,name,unum,ra,dec,sptype,opt,nir,mir,standard):
         self.name = name
         self.unum = unum
         self.ra = ra
@@ -107,7 +110,7 @@ class BDNYCData:
     
     def addTarget(self, targetObj, init=True):
         """
-        Add a new target to the database.
+        Add a new target to the database. If init is True, it will run the res_initializer() method after the target is added.
         """
         self.targets.append(targetObj)
         if init:
@@ -352,23 +355,9 @@ class BDNYCData:
             print "matchUNum: You really want to have nothing returned?"
             return
     
-    def overPlot(self, unum, med_instr, h_instr, dateM, dateH):
-        """
-        Needs documentation.
-        """
-        
-        ind = self.matchUNum(unum)
-        for i in self.targets[ind].nir['high'][h_instr][dateH].keys():
-            plt.plot(self.targets[ind].nir['high'][h_instr][dateH][i]['wl'], \
-            self.targets[ind].nir['high'][h_instr][dateH][i]['flux'], 'b')
-        for j in self.targets[ind].nir['med'][med_instr][dateM].keys():
-            plt.plot(self.targets[ind].nir['med'][med_instr][dateM][j]['wl'], \
-            self.targets[ind].nir['med'][med_instr][dateM][j]['flux'], 'r')
-        return
-    
     def plotOrders(self, unum, instr, date):
         """
-        Needs documentation.
+        Plots all of the orders for a given high-resolution spectrum on a single graph.
         """
         
         ind = self.matchUNum(unum)
