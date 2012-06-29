@@ -5,10 +5,27 @@
 """
 The module **BDNYC** is a set of classes and methods to handle data from the BDNYC database, which is stored in the BDNYCData.txt file.
 
+:Authors:
+	Dan Feldman, Alejandro N |uacute| |ntilde| ez
+
+:Last Update:
+    2012/06/28, Alejo
+    
+:Repository:
+    https://github.com/BDNYC/Python_Database
+
+:Contact:
+    bdnyc.labmanager@gmail.com
+
+:Requirements:
+    The following modules should already be installed in your computer: `matplotlib`_, `numpy`_.
+
 **The BDNYC Database**
+
 The structure of the database consists of two types of class instances, with the actual data in the form of nested dictionaries.
 
 **The Database Classes**
+
 An instance of the BDNYCData class is created to hold the whole database. This object holds instances of the Target class in the form of a Python list. The BDNYCData instance also includes methods to handle data from the Target instances.
 
 An instance of the Target class corresponds to a target in the sky. Each target has six attributes that describe it. They are 'name', 'unum', 'ra', 'dec', 'sptype', and 'standard'. The unique identifier is unum. All these are described in detail in the Target class documentation.
@@ -19,34 +36,23 @@ Each one of these keys in turn refer to a dictionary as well. For the 'high', 'm
 
 Each instrument in turn is a dictionary as well. Its keys are the dates of observation. If a date is not known, the key will be '0000xxx00'.
 
-Each observation in turn is a dictionary as well. Its keys are ['wl', 'flux', 'uncertainty', 'snr'].
+Each date in turn is a dictionary as well. Its keys are the order numbers (for high resolution spectra) or the filter names (for medium and low resolution spectra).
+
+Each order/filter in turn is a dictionary as well. Its keys are ['wl', 'flux', 'uncertainty', 'snr'].
 
 For the 'phot' dictionary, its keys are the surveys. Each survey in turn is a dictionary as well. Its keys are the bands. Each band in turn is a dictionary as well. Its keys are ['val', 'err'].
 
 For full documentation on the structure tree of the BDNYC database, you can refer to the Google Presentation named 'Python Database Structure'.
 
 **New Targets**
+
 Whenever a new instance of Target is added to the database, two levels of dictionaries are initialized as empty. That is, a target will have the following, regardless of the data that is added:
+
 *target*.opt['high':{}, 'med':{}, 'low':{}, 'phot':{}]
+
 *target*.nir['high':{}, 'med':{}, 'low':{}, 'phot':{}]
+
 *target*.mir['high':{}, 'med':{}, 'low':{}, 'phot':{}]
-*target*.phot[{}]
-
-
-:Authors:
-	Dan Feldman, Alejandro N |uacute| |ntilde| ez
-
-:Date of Last Update:
-    2012/06/27, Dan
-
-:Repository:
-    https://github.com/BDNYC/Python_Database
-
-:Contact: 
-    bdnyc.labmanager@gmail.com
-     
-:Requirements:
-    The following modules should already be installed in your computer: `matplotlib`_, `numpy`_.
 """
 
 # II ++++++++++++++++++++++++ EXTERNAL MODULES ++++++++++++++++++++++++++++++++
@@ -63,9 +69,7 @@ import numpy as np
 # Classes meant to be used by end users. Capitalize class names.
 class Target:
     """
-    An object containing data for a specific target object to be put into the BDNYC database. This flavor produces one extra level of nesting.
-    
-    Parameters:
+    An object containing data for a specific target in the sky to be put into the BDNYC database. This flavor produces one extra level of nesting.
     
     *name*
       A string with any known name(s) for the target. If there is no common name associated with the target, please use None.
@@ -108,7 +112,7 @@ class BDNYCData:
     def __init__(self):
         self.targets = []
     
-    def addTarget(self, targetObj, init=True):
+    def add_target(self, targetObj, init=True):
         """
         Add a new target to the database.
         
@@ -122,7 +126,7 @@ class BDNYCData:
             self.res_initializer()
         return
     
-    def dateList(self, obsType, res, surv_instr):
+    def date_list(self, obsType, res, surv_instr):
         """
         Sort through the dates and list all targets with observations on given 
         date.
@@ -198,151 +202,209 @@ class BDNYCData:
         File.close()
         return
     
-    def giveSpectrum(self, unum=None, otype=None, res=None, instr=None, date=None, snr=False, order=None, Filter=None):
+    def get_data(self, unum, ids, errors=True, header=False):
         """
-        Output a spectrum in a numpy array as [wl, flux, snr(optional)]. The necessary info about the spectrum must be provided as keyword arguments.
+        Return target data from database, specified using the data ids displayed in the output of the *show_data* function.
         
         *unum*
-          U number associated with the target whose spectrum you want (e.g. 'U10000').
-        *otype*
-          Observation type. It can be 'opt', 'nir', or 'mir'.
+          U-number of target whose data you want (e.g. 'U10000').
+        *ids*
+          The data id number as integer or list of integers. These ids are displayed in the output of the *show_data* as the first item in each data row.
+        *errors*
+          Boolean, whether to include spectral error values in output.
+        *header*
+          Boolean, whether to include the data identifiers in the output, that is, its range, resolution, instrument, date, and order/filter.
+        """
+        
+        # Initialize variables
+        INIT_ROWS = 7
+        data = []
+        
+        # Convert to list if input is only one id
+        try:
+            ids[0]
+        except TypeError:
+            ids = [ids]
+        ids = sorted(ids)
+        
+        # Get data headers in database for target
+        dataIdent = self.show_data(unum, dump=True)
+        if dataIdent is None:
+            return
+        
+        # Match id requests with available identifiers
+        for idnum in ids:
+            for rowIdent in dataIdent[INIT_ROWS:]:
+                if idnum == rowIdent[0]:
+                    rng = rowIdent[1]
+                    res = rowIdent[2]
+                    if res == 'phot':
+                        survey = rowIdent[3]
+                    else:
+                        instr = rowIdent[3]
+                        date  = rowIdent[4]
+                        if res == 'high':
+                            order = rowIdent[5]
+                            filt = None
+                        elif res == 'med' or res == 'low':
+                            order = None
+                            filt  = rowIdent[5]
+                    
+                    # Get requested data
+                    if res == 'phot':
+                        photom = self.give_photometry(unum, rng, survey)
+                        if header:
+                            data.append([photom, rowIdent])
+                        else:
+                            data.append(photom)
+                    else:
+                        spec = self.give_spectrum(unum, rng, res, instr, \
+                                                 date, errors, order, filt)
+                        if header:
+                            data.append([spec, rowIdent])
+                        else:
+                            data.append(spec)
+        
+        if len(ids) == 1:
+            return data[0]
+        else:
+            return data
+    
+    def give_photometry(self, unum, rng, survey):
+        """
+        Return photometry of target as a dictionary for the range and survey requested.
+        
+        *unum*
+          U-number of target whose photometry you want (e.g. 'U10000').
+        *rng*
+          Observation range. It can be 'opt', 'nir', or 'mir'.
+        *survey*
+          Survey that measured the photometry. (e.g. '2MASS').
+        """
+        
+        # 1. Get the target's index in the database
+        specIdx = self.match_unum(unum)
+        if specIdx is None:
+            print str(unum) + ' not in database.'
+            return
+        
+        # 2. Determine data range
+        if rng == 'opt':
+            specDict = self.targets[specIdx].opt
+        elif rng == 'nir':
+            specDict = self.targets[specIdx].nir
+        elif rng == 'mir':
+            specDict = self.targets[specIdx].mir
+        else:
+            print '"' + str(rng) + '" Range invalid.'
+            return
+        
+        # 3. Get requested photometry
+        try:
+            photom = specDict['phot'][survey]
+        except KeyError:
+            print 'Photometry requested not found.'
+            return
+        
+        return photom
+    
+    def give_spectrum(self, unum, rng, res, instr, date, errors=True, order=None, Filter=None):
+        """
+        Return spectrum in a numpy array as [wl, flux, errors(optional)]. The necessary info about the spectrum must be provided as keyword arguments.
+        
+        *unum*
+          U-number of target whose spectrum you want (e.g. 'U10000').
+        *rng*
+          Observation range. It can be 'opt', 'nir', or 'mir'.
         *res*
           Resolution of the spectrum. It can be 'low', 'med', or 'high'.
         *instr*
-          Instrument or survey (e.g. NIRSPEC).
+          Instrument or survey (e.g. 'NIRSPEC').
         *date*
-          Observation date (e.g. 2009jan23).
-        *snr*
-          Boolean, whether or not to include the snr array.
+          Observation date (e.g. '2009jan23').
+        *errors*
+          Boolean, whether or not to include flux errors (snr or uncertainties).
         *order*
-          Integer. If high resolution desired, you must specify the order (e.g. 38).
-        *filter*
-          If medium or low resolution desired, you must specify the filter (e.g. 'JHK').
+          Integer. If high resolution requested, you must specify the order (e.g. 38).
+        *Filter*
+          If medium or low resolution requested, you must specify the filter (e.g. 'JHK').
         """
         
-        specInd = self.matchUNum(unum)
-        if otype=='opt':
-            
-            if res=='high':
-                specArr = \
-                    np.array([self.targets[specInd].opt['high'] \
-                                           [instr][date][order]['wl'], \
-                              self.targets[specInd].opt['high'] \
-                                           [instr][date][order]['flux']])
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].opt['high'] \
-                                           [instr][date][order]['snr']], axis=0)
-                return specArr
-            
-            if res=='med':
-                specArr = \
-                    np.array([self.targets[specInd].opt['med'] \
-                                           [instr][date][Filter]['wl'], \
-                              self.targets[specInd].opt['med'] \
-                                           [instr][date][Filter]['flux']])
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].opt['med'] \
-                                          [instr][date][Filter]['snr']], axis=0)
-                return specArr
-            
-            if res=='low':
-                specArr = \
-                    np.array([self.targets[specInd].opt['low'] \
-                                           [instr][date]['wl'], \
-                              self.targets[specInd].opt['low'] \
-                                         [instr][date][Filter]['flux']], axis=0)
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].opt['low'] \
-                                          [instr][date][Filter]['snr']], axis=0)
-                return specArr
+        # 1. Get the target's index in the database
+        specIdx = self.match_unum(unum)
+        if specIdx is None:
+            print str(unum) + ' not in database.'
+            return
         
-        elif otype=='nir':
-            
-            if res=='high':
-                specArr = \
-                    np.array([self.targets[specInd].nir['high'] \
-                                           [instr][date][order]['wl'], \
-                              self.targets[specInd].nir['high'] \
-                                           [instr][date][order]['flux']])
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].nir['high'] \
-                                           [instr][date][order]['snr']], axis=0)
-                return specArr
-            
-            if res=='med':
-                specArr = \
-                    np.array([self.targets[specInd].nir['med'] \
-                                           [instr][date][Filter]['wl'], \
-                              self.targets[specInd].nir['med'] \
-                                           [instr][date][Filter]['flux']])
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].nir['med'] \
-                                          [instr][date][Filter]['snr']], axis=0)
-                return specArr
-            
-            if res=='low':
-                specArr = \
-                    np.array([self.targets[specInd].nir['low'] \
-                                           [instr][date]['wl'], \
-                              self.targets[specInd].nir['low'] \
-                                         [instr][date][Filter]['flux']], axis=0)
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].nir['low'] \
-                                          [instr][date][Filter]['snr']], axis=0)
-                return specArr
+        # 2. Do basic input checks
+        if len(date) != 9:
+            print '"' + str(date) + '" date invalid.'
+            return
+        if res == 'high':
+            try:
+                order + 0
+            except TypeError:
+                print 'Order must be an integer.'
+                return
+        else:
+            if Filter is None:
+                print 'Filter needed for low and medium resolution spectra.'
+                return
         
-        elif otype=='mir':
+        # 3. Use relevant key (order or filter) according to resolution
+        if res == 'high':
+            ord_filt = order
+        elif res == 'med' or res == 'low':
+            ord_filt = Filter
+        else:
+            print '"' + str(res) + '" Resolution invalid.'
+            return
+        
+        # 4. Determine spectrum range
+        if rng == 'opt':
+            specDict = self.targets[specIdx].opt
+        elif rng == 'nir':
+            specDict = self.targets[specIdx].nir
+        elif rng == 'mir':
+            specDict = self.targets[specIdx].mir
+        else:
+            print '"' + str(rng) + '" Range invalid.'
+            return
+        
+        # 5. Get spectrum
+        try:
+            wl = specDict[res][instr][date][ord_filt]['wl']
+        except KeyError:
+            print 'Data requested not found.'
+            return
+        flux = specDict[res][instr][date][ord_filt]['flux']
+        specArr = np.array([wl, flux])
+        
+        # 6. Include flux errors if requested and available
+        if errors:
+            try:
+                errArr = specDict[res][instr][date][ord_filt]['uncertainty']
+            except KeyError:
+                try:
+                    errArr = specDict[res][instr][date][ord_filt]['snr']
+                except KeyError:
+                    errArr = None
+                    print 'No flux errors array available for' + rng + ' ' \
+                          + res + ' ' + instr + ' ' + date + ' ' + str(ord_filt)
             
-            if res=='high':
-                specArr = \
-                    np.array([self.targets[specInd].mir['high'] \
-                                           [instr][date][order]['wl'], \
-                              self.targets[specInd].mir['high'] \
-                                           [instr][date][order]['flux']])
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].mir['high'] \
-                                           [instr][date][order]['snr']], axis=0)
-                return specArr
-            
-            if res=='med':
-                specArr = \
-                    np.array([self.targets[specInd].mir['med'] \
-                                           [instr][date][Filter]['wl'], \
-                              self.targets[specInd].mir['med'] \
-                                           [instr][date][Filter]['flux']])
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].mir['med'] \
-                                          [instr][date][Filter]['snr']], axis=0)
-                return specArr
-            
-            if res=='low':
-                specArr = \
-                    np.array([self.targets[specInd].mir['low'] \
-                                           [instr][date]['wl'], \
-                              self.targets[specInd].mir['low'] \
-                                         [instr][date][Filter]['flux']], axis=0)
-                if snr:
-                    specArr = np.append(specArr, \
-                              [self.targets[specInd].mir['low'] \
-                                          [instr][date][Filter]['snr']], axis=0)
-                return specArr
+            if errArr is not None:
+                specArr = np.append(specArr, [errArr], axis=0)
+        
+        return specArr
     
-    def matchUNum(self, unum, array=False, index=True, verbose=False):
+    def match_unum(self, unum, array=False, index=True, verbose=False):
         """
-        Match a U number to a target so the code knows which object you are referring to. It returns the array of U numbers, the index of the target object in question, or both, in that order.
+        Match a U-number to a target so the code knows which object you are referring to. It returns the array of U-numbers, the index of the target object in question, or both, in that order.
         
         *unum*
-          U number associated with the target whose spectrum you want (e.g. 'U10000').
+          U-number associated with the target whose spectrum you want (e.g. 'U10000').
         *array*
-          Boolean: If True, returns an array containing all of the U numbers in the database.
+          Boolean: If True, returns an array containing all of the U-numbers in the database.
         *index*
           Boolean: If True, returns the index associated with the given U number.
         *verbose*
@@ -356,9 +418,9 @@ class BDNYCData:
             uNumInd = np.where(uNumbers==unum)[0][0]
         except IndexError:
             if verbose:
-                print 'matchUNum: U-number not in database.'
+                print 'match_num: U-number not in database.'
             return
-#            raise ValueError('matchUNum: U Number not in database. Could not match')
+#            raise ValueError('match_unum: U Number not in database. Could not match')
         if (array==False and index==True):
             return uNumInd
         elif (array==True and index==False):
@@ -367,22 +429,22 @@ class BDNYCData:
             return uNumbers, uNumInd
         else:
             if verbose:
-                print "matchUNum: You really want to have nothing returned?"
+                print "match_unum: You really want to have nothing returned?"
             return
     
-    def plotOrders(self, unum, instr, date):
+    def plot_orders(self, unum, instr, date):
         """
         Plots all of the orders for a given high-resolution spectrum on a single graph.
         
         *unum*
-          U number associated with the target whose spectrum you want (e.g. 'U10000').
+          U-number associated with the target whose spectrum you want (e.g. 'U10000').
         *instr*
           Instrument or survey (e.g. NIRSPEC).
         *date*
           Observation date (e.g. 2009jan23).
         """
         
-        ind = self.matchUNum(unum)
+        ind = self.match_unum(unum)
         for i in self.targets[ind].nir['high'][instr][date].keys():
             plt.plot(self.targets[ind].nir['high'][instr][date][i]['wl'], \
             self.targets[ind].nir['high'][instr][date][i]['flux'])
@@ -451,12 +513,12 @@ class BDNYCData:
     
     def show_data(self, unum, dump=False):
         '''
-        Show all existing data in database for a target.
+        Show all existing data identifiers in database for a target. Each piece of data gets assigned an id number, which is displayed as the first item in each data row. These ids can be used in the *get_data* method to get the actual data from the database.
         
         *unum*
            String with the U-number of target (e.g. 'U10000').
-         *dump*
-           Boolean, whether to return output on a list. If False, show_data will only print existing data in terminal window.
+        *dump*
+          Boolean, whether to return output as a Python list. If False, show_data will only print existing data identifiers in terminal window.
         '''
         
         # 1. Initialize variables
@@ -474,7 +536,7 @@ class BDNYCData:
             return
         
         # 3. Check if target with requested U-number exists
-        idxU = self.matchUNum(unum, verbose=False)
+        idxU = self.match_unum(unum, verbose=False)
         if idxU is None:
             print 'U-number not in database.'
             return
@@ -482,7 +544,7 @@ class BDNYCData:
         else:
             curTgt = self.targets[idxU]
         
-        # 4. Create structure with all data available for target
+        # 4. Create structure with all data identifiers available for target
         data = []
         
         # 4.1 Add target attributes to output
@@ -495,7 +557,8 @@ class BDNYCData:
         data.append(['dec', curTgt.dec])
         data.append(['standard', curTgt.standard])
         
-        # 4.2 Add spectra & photometry indicators to output
+        # 4.2 Add spectra & photometry identifiers to output
+        count = 0
         # OPT range spectra
         rng = 'opt'
         for res in resolutions:
@@ -503,7 +566,9 @@ class BDNYCData:
             if specs != {}:
                 for instr in specs.keys():
                     for date in specs[instr]:
-                        data.append([rng, res, instr, date])
+                        for order in specs[instr][date]:
+                            data.append([count, rng, res, instr, date, order])
+                            count = count + 1
         # OPT range photometry
         photos = curTgt.opt['phot']
         if photos != {}:
@@ -511,7 +576,8 @@ class BDNYCData:
                 bands = []
                 for band in photos[survey].keys():
                     bands.append(band)
-                data.append([rng, 'phot', survey, bands])
+                data.append([count, rng, 'phot', survey, bands])
+                count = count + 1
         
         # NIR range spectra
         rng = 'nir'
@@ -520,7 +586,9 @@ class BDNYCData:
             if specs != {}:
                 for instr in specs.keys():
                     for date in specs[instr]:
-                        data.append([rng, res, instr, date])
+                        for order in specs[instr][date]:
+                            data.append([count, rng, res, instr, date, order])
+                            count = count + 1
         # NIR range photometry
         photos = curTgt.nir['phot']
         if photos != {}:
@@ -528,7 +596,8 @@ class BDNYCData:
                 bands = []
                 for band in photos[survey].keys():
                     bands.append(band)
-                data.append([rng, 'phot', survey, bands])
+                data.append([count, rng, 'phot', survey, bands])
+                count = count + 1
         
         # MIR range spectra
         rng = 'mir'
@@ -537,7 +606,9 @@ class BDNYCData:
             if specs != {}:
                 for instr in specs.keys():
                     for date in specs[instr]:
-                        data.append([rng, res, instr, date])
+                        for order in specs[instr][date]:
+                            data.append([count, rng, res, instr, date, order])
+                            count = count + 1
         # MIR range photometry
         photos = curTgt.mir['phot']
         if photos != {}:
@@ -545,9 +616,10 @@ class BDNYCData:
                 bands = []
                 for band in photos[survey].keys():
                     bands.append(band)
-                data.append([rng, 'phot', survey, bands])
+                data.append([count, rng, 'phot', survey, bands])
+                count = count + 1
         
-        # 5. Give output
+        # 5. Determine output display
         if dump:
             return data
         else:
