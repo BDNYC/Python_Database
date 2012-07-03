@@ -1,0 +1,50 @@
+# Use this tab-delimited file to upload data into the BDNYC Database
+# using the add_data() method in BDNYC.py.
+#
+# BASIC COLUMNS ---------------------------------------------------------------
+# unum:
+#   U-number (e.g. 'U10000')
+# name:
+#   common name(s); if more than one, separate by comma; leave blank if none
+# ra:
+#   ra of target (e.g. '13 20 15.6'); required for NEW targets
+# dec:
+#   dec of target (e.g. '+13 20 15.6'); required for NEW targets
+# sptype:
+#   spectral type (e.g. 'L1.5b'); NO greek letters! leave blank if unknown
+# standard:
+#   'Yes' or 'No'; is target standard (or candidate)? required for NEW targets
+#
+# COLUMNS RELEVANT FOR SPECTRA ------------------------------------------------
+# rng:
+#   'opt', 'nir', or 'mir'; range of spectrum
+# res:
+#   'high', 'med', or 'low'; resolution of spectrum
+# instr:
+#   telescope + instrument used (e.g. 'IRTF SpeX Prism')
+# date:
+#   date of observation (e.g. '2000jan20')
+# ord_filt:
+#   if res='high', enter order number (e.g. 38)
+#   if res='med' or 'low', enter filter name (e.g. 'RIZ' or 'JHK')
+# fitsname:
+#   full path & name of fits file with spectrum
+# If uploading no photometry, leave the rest of columns blank,
+# no extra tabs necessary.
+#
+# COLUMNS RELEVANT FOR PHOTOMETRY ---------------------------------------------
+# rng:
+#   'opt', 'nir', or 'mir'; range of photometry
+# survey:
+#   name of survey where photometry comes from (e.g. '2MASS')
+# band_1:
+#   name of band (e.g. 'J')
+# val_1:
+#   flux value of band (e.g. 14.1)
+# err_1:
+#   error of flux value (e.g. 0.12); leave blank if unknown
+# You can enter up to three bands in one row.
+# If uploading less than three bands, leave the rest of columns blank,
+# no extra tabs necessary.
+#
+# unum	name	ra	dec	sptype	standard	rng	res	instr	date	ord_filt	fitsname	survey	band_1	val_1	err_1	band_2	val_2	err_2	band_3	val_3	err_3
