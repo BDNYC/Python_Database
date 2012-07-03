@@ -9,7 +9,7 @@ The module **BDNYC** is a set of classes and methods to handle data from the BDN
 	Dan Feldman, Alejandro N |uacute| |ntilde| ez
 
 :Last Update:
-    2012/06/28, Alejo
+    2012/07/03, Alejo
     
 :Repository:
     https://github.com/BDNYC/Python_Database
@@ -18,7 +18,7 @@ The module **BDNYC** is a set of classes and methods to handle data from the BDN
     bdnyc.labmanager@gmail.com
 
 :Requirements:
-    The following modules should already be installed in your computer: `matplotlib`_, `numpy`_.
+    The following modules should already be installed in your computer: `astrotools`_, `asciidata`_, `matplotlib`_, `numpy`_.
 
 **The BDNYC Database**
 
@@ -60,8 +60,13 @@ Whenever a new instance of Target is added to the database, two levels of dictio
 
 # Basic Python modules
 import pdb
+import pickle
+
+# BDNYC modules
+import astrotools as at
 
 # Third party Python modules
+import asciidata as ad
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -112,18 +117,370 @@ class BDNYCData:
     def __init__(self):
         self.targets = []
     
-    def add_target(self, targetObj, init=True):
+    def add_data(self, overwrite=False):
         """
-        Add a new target to the database.
+        Add spectral and/or photometry data for a target. If target does not exist in database, it will add it automatically using the *add_target* method. The data to upload is read form the *upload.txt* file located in the same folder as the database file in your computer. Read *upload.txt* header for more information.
+        
+        *overwrite*
+          Boolean, whether to overwrite existing data or not.
+        """
+        
+        # 1. Initialize variables ---------------------------------------------
+        DB_FILE = 'BDNYCData.txt'
+        UP_FILE = 'upload.txt' # ascii file with upload data
+        UP_HEADERS = ('unum','name','ra', 'dec', 'sptype', 'standard', \
+                      'rng', 'res', 'instr', 'date', 'ord_filt', 'fitsname', \
+                      'survey', 'band_1', 'val_1', 'err_1', \
+                      'band_2', 'val_2', 'err_2', \
+                      'band_3', 'val_3', 'err_3')
+        NULL = ''   # Null character in ascii file
+        DEL  = '\t' # Delimiter character in ascii file
+        COMM = '#'  # Comment character in ascii file
+        NUM_BANDS = 3
+        
+        colNmUnum = UP_HEADERS[0]
+        colNmName = UP_HEADERS[1]
+        colNmRa   = UP_HEADERS[2]
+        colNmDec  = UP_HEADERS[3]
+        colNmSptype = UP_HEADERS[4]
+        colNmStd    = UP_HEADERS[5]
+        colNmRng    = UP_HEADERS[6]
+        colNmRes    = UP_HEADERS[7]
+        colNmInstr  = UP_HEADERS[8]
+        colNmDate   = UP_HEADERS[9]
+        colNmOrdfilt = UP_HEADERS[10]
+        colNmFits    = UP_HEADERS[11]
+        colNmSurvey  = UP_HEADERS[12]
+        colNmBand1 = UP_HEADERS[13]
+        colNmVal1  = UP_HEADERS[14]
+        colNmErr1  = UP_HEADERS[15]
+        colNmBand2 = UP_HEADERS[16]
+        colNmVal2  = UP_HEADERS[17]
+        colNmErr2  = UP_HEADERS[18]
+        colNmBand3 = UP_HEADERS[19]
+        colNmVal3  = UP_HEADERS[20]
+        colNmErr3  = UP_HEADERS[21]
+        
+        # 2. Load ascii file --------------------------------------------------
+        dataRaw = ad.open(UP_FILE, null=NULL, delimiter=DEL, comment_char=COMM)
+        # Store ascii data in a dictionary-type object
+        data = {}.fromkeys(UP_HEADERS)
+        for colIdx, colData in enumerate(dataRaw):
+            data[UP_HEADERS[colIdx]] = colData.tonumpy()
+        
+        if data[colNmUnum] is None:
+            print 'Upload file empty.'
+            return
+        
+        # 3. Upload data to database ------------------------------------------
+        somethingAdded = False
+        for row in range(len(data[colNmUnum])):
+            
+            # 3.1 Check if target already exists in database
+            unum = data[colNmUnum][row].upper()
+            try:
+                unum + 0
+                print 'U-number invalid.'
+                continue
+            except TypeError:
+                if len(unum) != 6:
+                    print 'U-number invalid.'
+                    continue
+                if unum[0] != 'U':
+                    print 'U-number invalid.'
+                    continue
+            dbIdx = self.match_unum(unum)
+            if dbIdx is None:
+                newTgt = True
+            else:
+                newTgt = False
+            
+            # 3.2 Get target attributes
+            if newTgt:
+                name = data[colNmName][row]
+                if name == '':
+                    name = None
+                sptype = data[colNmSptype][row].capitalize()
+                if sptype == '':
+                    sptype = 'XX'
+                ra = data[colNmRa][row]
+                if len(ra) < 8 or ra == '':
+                    print unum + ' Right ascension invalid.'
+                    continue
+                dec = data[colNmDec][row]
+                if len(dec) < 9:
+                    print unum + ' Declination invalid.'
+                    continue
+                std = data[colNmStd][row].capitalize()
+                if not (std == 'Yes' or std == 'No'):
+                    print unum + ' Standard column must be Yes or No.'
+                    continue
+            
+            # 3.3 Get range of data
+            rng = data[colNmRng][row].lower()
+            if not (rng == 'opt' or rng == 'nir' or rng == 'mir'):
+                print unum + ' Range invalid.'
+                continue
+            
+            # 3.4 Get spectrum data
+            # 3.4.1 Open & read fits file
+            specAdd = False
+            fitsName = data[colNmFits][row]
+            if fitsName != '':
+                fitsRaw = at.read_spec(fitsName, errors=True)
+                if fitsRaw[0] is not None:
+                    wl   = fitsRaw[0][0]
+                    flux = fitsRaw[0][1]                                                                                                                                                                                                                                                                                  
+                    
+                    # 3.4.2 Determine if 3rd dimension is uncertainty or snr
+                    errNm = None
+                    if len(fitsRaw[0]) == 3:
+                        errVals = None
+                        med = np.median(flux/fitsRaw[0][2])
+                        if med < 10**3 and med > 10**-3:
+                            errVals = fitsRaw[0][2]
+                            errNm = 'uncertainty'
+                        else:
+                            errVals = fitsRaw[0][2]
+                            errNm = 'snr'
+                    
+                    # 3.4.3 Get spectrum attributes
+                    attsOK = True
+                    res = data[colNmRes][row].lower()
+                    if not (res == 'high' or res == 'med' or res == 'low'):
+                        print unum + ' Resolution invalid.'
+                        attsOK = False
+                    instr = data[colNmInstr][row]
+                    if instr == '':
+                        print unum + ' Must provide Instrument for spectrum.'
+                        attsOK = False
+                    date  = data[colNmDate][row].lower()
+                    if len(date) != 9:
+                        print unum + ' Date invalid.'
+                        attsOK = False
+                    if date[-1] == '\r':
+                        date = date[:-1]
+                    ord_filt = data[colNmOrdfilt][row]
+                    if ord_filt == '':
+                        print unum + ' Must provide Order/Filter for spectrum.'
+                        attsOK = False
+                    
+                    # 3.4.4 Create dictionary structure with spectrum data
+                    if attsOK:
+                        specAdd = True
+                        specDict = {instr:{date:{ord_filt:{'wl':wl, \
+                                                'flux':flux, errNm:errVals}}}}
+            
+            # 3.5 Get target photometry attributes
+            # 3.5.1 Check if photometry data was provided
+            photAdd = False
+            try:
+                survey = data[colNmSurvey][row]
+            except TypeError:
+                survey = ''
+            # 3.5.2 Get data for bands
+            if survey != '':
+                bands = []
+                vals  = []
+                errs  = []
+                photOK = True
+                
+                for bndNum in range(1,NUM_BANDS + 1):
+                    bndNm = 'band_' + str(bndNum)
+                    valNm = 'val_' + str(bndNum)
+                    errNm = 'err_' + str(bndNum)
+                    try:
+                        # Get band name
+                        bands.append(data[bndNm][row])
+                        if bands[bndNum - 1] == '':
+                            photOK = False
+                        else:
+                            try:
+                                bands[bndNum - 1][0]
+                            except IndexError:
+                                photOK = False
+                        # Get band photometry value
+                        try:
+                            vals.append(data[valNm][row])
+                            try:
+                                vals[bndNum - 1] + 0
+                            except TypeError:
+                                if vals[bndNum - 1][-1] == '\r':
+                                    vals[bndNum - 1] = vals[bndNum - 1][:-1]
+                                    try:
+                                        vals[bndNum - 1] + 0
+                                    except TypeError:
+                                        photOK = False
+                                else:
+                                    photOK = False
+                        except TypeError:
+                            photOK = False
+                        # Get band photometry value error
+                        try:
+                            errs.append(data[errNm][row])
+                            if errs[bndNum - 1] == '':
+                                errs[bndNum - 1] = None
+                            else:
+                                try:
+                                    errs[bndNum - 1] + 0
+                                except TypeError:
+                                    if errs[bndNum - 1][0] == '\r':
+                                        errs[bndNum - 1] = None
+                                    else:
+                                        photOK = False
+                        except TypeError:
+                            errs.append(None)
+                    except TypeError:
+                        if bndNum == 1:
+                            photOK = False
+                
+                # 3.5.3 Create dictionary structure with photometry data
+                if photOK:
+                    photDict = {survey:{}}
+                    for bdIdx, band in enumerate(bands):
+                        if band != '':
+                            photAdd = True
+                            photDict[survey][band] = {'val': vals[bdIdx], \
+                                                      'err': errs[bdIdx]}                    
+                else:
+                    print unum + ' Photometry data invalid.'
+            
+           # 3.6 Create range-level dictionary with all data
+            if photAdd and specAdd:
+                rngDict = {res:specDict, 'phot':photDict}
+            elif photAdd and not specAdd:
+                rngDict = {'phot':photDict}
+            elif not photAdd and specAdd:
+                rngDict = {res:specDict}
+            else:
+                print 'No data to add for ' + unum
+                continue
+            
+            # 3.7 Add new target to database if necessary
+            if newTgt:
+                # 3.7.1 Create Target instance
+                if rng == 'opt':
+                    target = Target(name, unum, ra, dec, sptype, \
+                                         rngDict, {}, {}, std)
+                elif rng == 'nir':
+                    target = Target(name, unum, ra, dec, sptype, \
+                                         {}, rngDict, {}, std)
+                elif rng == 'mir':
+                    target = Target(name, unum, ra, dec, sptype, \
+                                         {}, {}, rngDict, std)
+                
+                # 3.7.2 Add to database
+                self.add_target(target, verbose=False)
+                somethingAdded = True
+                print unum + ' new target added to database: Index # ' + \
+                      str(len(self.targets) - 1)
+            
+            # 3.8 Add new data to database if target already exists
+            else:
+                addedPhot = False
+                addedSpec = False
+                if rng == 'opt':
+                    currentTgt = self.targets[dbIdx].opt
+                elif rng == 'nir':
+                    currentTgt = self.targets[dbIdx].nir
+                elif rng == 'mir':
+                    currentTgt = self.targets[dbIdx].mir
+                
+                # 3.8.1 Check dictionary level where to add data
+                if currentTgt != {}:
+                    # For photometry data
+                    if photAdd:
+                        try:
+                            currentTgt['phot'][survey]
+                            for bnd in rngDict['phot'][survey].keys():
+                                try:
+                                    currentTgt['phot'][survey][bnd]
+                                    # Overwrite existing data if requested
+                                    if overwrite:
+                                        addedPhot = True
+                                        currentTgt['phot'][survey][bnd] = \
+                                                   rngDict['phot'][survey][bnd]
+                                    else:
+                                        print unum  + ' ' + bnd + \
+                                              ' photometry already exists' + \
+                                              ' in database.'
+                                except KeyError:
+                                    addedPhot = True
+                                    currentTgt['phot'][survey][bnd] = \
+                                                   rngDict['phot'][survey][bnd]
+                        except KeyError:
+                            addedPhot = True
+                            currentTgt['phot'][survey] = \
+                                                    rngDict['phot'][survey]
+                    # For spectrum data
+                    if specAdd:
+                        try:
+                            currentTgt[res][instr]
+                            try:
+                                currentTgt[res][instr][date]
+                                try:
+                                    currentTgt[res][instr][date][ord_filt]
+                                    # Overwrite existing data if requested
+                                    if overwrite:
+                                        addedSpec = True
+                                        currentTgt[res][instr][date][ord_filt] \
+                                           = rngDict[res][instr][date][ord_filt]
+                                    else:
+                                        print unum + ', ' + \
+                                        data[colNmFits][row] + \
+                                        ' spectrum already exists in database.'
+                                except KeyError:
+                                    addedSpec = True
+                                    currentTgt[res][instr][date][ord_filt] = \
+                                            rngDict[res][instr][date][ord_filt]
+                            except KeyError:
+                                addedSpec = True
+                                currentTgt[res][instr][date] = \
+                                                    rngDict[res][instr][date]
+                        except KeyError:
+                            addedSpec = True
+                            currentTgt[res][instr] = rngDict[res][instr]
+                else:
+                    addedSpec = True
+                    currentTgt = rngDict
+                
+                if addedSpec or addedPhot:
+                    somethingAdded = True
+                    print unum + ' new data added to target in database.'
+        
+        # 4. Commit additions to database file --------------------------------
+        if somethingAdded:
+            # Check that database txt file exists in current folder
+            try:
+                f = open(DB_FILE,'rb')
+            except IOError:
+                print DB_FILE + ' could not be loaded. Check that it is ' + \
+                      'in the current folder. Process stopped.'
+                return
+            f.close()
+            f = open(DB_FILE,'wb')
+            print 'Updating ' + DB_FILE + '...'
+            pickle.dump(self, f)
+            f.close()
+            
+            print 'Remember to push updated ' + DB_FILE + ' to github.'
+        
+        return
+    
+    def add_target(self, targetObj, init=True, verbose=True):
+        """
+        Add a new Target instance to the database. The Target instance must have the correct structure, as illustrated in the Python Database Structure' Google Presentation.
         
         *targetObj*
-          The instance of the Target class being added to the database.
+          The Target instance to add to the database.
         *init*
-          Boolean: If True, runs the res_initializer function after the target is added.
+          Boolean: If True, runs the *res_initializer* method after the target is added.
+        *verbose*
+          Boolean, whether to print messages.
         """
         self.targets.append(targetObj)
         if init:
-            self.res_initializer()
+            self.res_initializer(verbose=verbose)
         return
     
     def date_list(self, obsType, res, surv_instr):
@@ -204,7 +561,7 @@ class BDNYCData:
     
     def get_data(self, unum, ids, errors=True, header=False):
         """
-        Return target data from database, specified using the data ids displayed in the output of the *show_data* function.
+        Return target data from database, specified using the data ids displayed in the output of the *show_data* method. This method acts as a centralized station to get either spectra or photometry of a target, as opposed to using *give_spectrum* or *give_photometry* methods directly.
         
         *unum*
           U-number of target whose data you want (e.g. 'U10000').
@@ -234,8 +591,10 @@ class BDNYCData:
         
         # Match id requests with available identifiers
         for idnum in ids:
+            matched = False
             for rowIdent in dataIdent[INIT_ROWS:]:
                 if idnum == rowIdent[0]:
+                    matched = True
                     rng = rowIdent[1]
                     res = rowIdent[2]
                     if res == 'phot':
@@ -264,6 +623,9 @@ class BDNYCData:
                             data.append([spec, rowIdent])
                         else:
                             data.append(spec)
+            if not matched:
+                print 'Id ' + str(idnum) + ' not valid.'
+                data.append([])
         
         if len(ids) == 1:
             return data[0]
@@ -310,7 +672,7 @@ class BDNYCData:
     
     def give_spectrum(self, unum, rng, res, instr, date, errors=True, order=None, Filter=None):
         """
-        Return spectrum in a numpy array as [wl, flux, errors(optional)]. The necessary info about the spectrum must be provided as keyword arguments.
+        Return spectrum of target in a numpy array as [wl, flux, errors(optional)].
         
         *unum*
           U-number of target whose spectrum you want (e.g. 'U10000').
@@ -323,7 +685,7 @@ class BDNYCData:
         *date*
           Observation date (e.g. '2009jan23').
         *errors*
-          Boolean, whether or not to include flux errors (snr or uncertainties).
+          Boolean, whether to include flux errors (snr or uncertainties).
         *order*
           Integer. If high resolution requested, you must specify the order (e.g. 38).
         *Filter*
@@ -399,16 +761,16 @@ class BDNYCData:
     
     def match_unum(self, unum, array=False, index=True, verbose=False):
         """
-        Match a U-number to a target so the code knows which object you are referring to. It returns the array of U-numbers, the index of the target object in question, or both, in that order.
+        Find the index of a target in the database using its U-number. It has the option of returning all U-numbers in the database as a numpy array. If target U-number is not found in database, it returns *None* value.
         
         *unum*
           U-number associated with the target whose spectrum you want (e.g. 'U10000').
         *array*
-          Boolean: If True, returns an array containing all of the U-numbers in the database.
+          Boolean, whether to return an array containing all of the U-numbers in the database.
         *index*
-          Boolean: If True, returns the index associated with the given U number.
+          Boolean, whether to return the index associated with the given U-number.
         *verbose*
-          Boolean: If True, prints warning messages.
+          Boolean, whether messages.
         """
         
         uNumbers = np.array([], dtype='S6')
@@ -450,9 +812,12 @@ class BDNYCData:
             self.targets[ind].nir['high'][instr][date][i]['flux'])
         return
     
-    def res_initializer(self):
+    def res_initializer(self, verbose=True):
         """
-        Look at each target in the database and initilizes the keys at the resolution level. So, for instance, if 'med' and 'phot' are the only two resolutions present, it will initialize 'high' and 'low' as empty dictionaries.
+        Scans all Target instances in the database looking for missing *range* or *resolution* level dictionaries. When missing, it will create them as empty dictionaries. So, for instance, if 'med' and 'phot' are the only two resolutions present on a Target instance, it will initialize 'high' and 'low' as empty dictionaries.
+        
+        *verbose*
+          Boolean, whether to print messages.
         """
         
         for target in self.targets:
@@ -507,8 +872,9 @@ class BDNYCData:
             except KeyError:
                 target.mir['phot'] = {}
         
-        print 'RES INITIALIZER: Database updated but unsaved. ' \
-              + 'Please save changes when finished.'
+        if verbose:
+            print 'RES INITIALIZER: Database updated but unsaved. ' \
+                + 'Please save changes when finished.'
         return
     
     def show_data(self, unum, dump=False):
@@ -516,7 +882,7 @@ class BDNYCData:
         Show all existing data identifiers in database for a target. Each piece of data gets assigned an id number, which is displayed as the first item in each data row. These ids can be used in the *get_data* method to get the actual data from the database.
         
         *unum*
-           String with the U-number of target (e.g. 'U10000').
+           U-number of target (e.g. 'U10000').
         *dump*
           Boolean, whether to return output as a Python list. If False, show_data will only print existing data identifiers in terminal window.
         '''
@@ -528,11 +894,11 @@ class BDNYCData:
         try:
             length = len(unum)
         except TypeError:
-            print 'U-number must be a string. Try again.'
+            print 'U-number must be a string.'
             return
         
         if length != 6:
-            print 'U-number is invalid. Try again.'
+            print 'U-number invalid.'
             return
         
         # 3. Check if target with requested U-number exists
@@ -551,7 +917,10 @@ class BDNYCData:
         data.append(['unum',unum])
         data.append(['index', idxU])
         if curTgt.name is not None:
-            data.append(['name', curTgt.name])
+            curNm = curTgt.name
+        else:
+            curNm = ''
+        data.append(['name', curNm])
         data.append(['sptype', curTgt.sptype])
         data.append(['ra', curTgt.ra])
         data.append(['dec', curTgt.dec])
