@@ -566,7 +566,7 @@ class BDNYCData:
         *unum*
           U-number of target whose data you want (e.g. 'U10000').
         *ids*
-          The data id number as integer or list of integers. These ids are displayed in the output of the *show_data* as the first item in each data row.
+          The data id number as integer or list of integers. These ids are displayed in the output of the *show_data* as the first item in each data row. If more than one id, get_data will return the corresponding data as a list in ascending id order, regardless of the order in the input.
         *errors*
           Boolean, whether to include spectral error values in output.
         *header*
