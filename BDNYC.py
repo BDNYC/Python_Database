@@ -119,7 +119,7 @@ class BDNYCData:
     
     def add_data(self, overwrite=False):
         """
-        Add spectral and/or photometry data for a target. If target does not exist in database, it will create a Target instance it automatically using the *add_target* method. The data to upload is read form the *upload.txt* file located in the same folder as the database file in your computer. Read *upload.txt* header for more information.
+        Add spectral and/or photometry data for a target. If target does not exist in database, it will create a Target instance automatically using the *add_target* method. The data to upload is read form the *upload.txt* file located in the same folder as the database file in your computer. Read *upload.txt* header for more information.
         
         *overwrite*
           Boolean, whether to overwrite existing data or not.
