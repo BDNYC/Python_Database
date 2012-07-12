@@ -559,6 +559,72 @@ class BDNYCData:
         File.close()
         return
     
+    def find_unum(self, ra=None, dec=None, name=None, dump=False):
+        '''
+        Find potential target matches based on ra, dec, or name. Only one of these three inputs is needed. If more than one is provided, *find_unum* will return targets that match either one. It returns the attributes of all potentially matched targets (unum, index, name, sptype, ra, dec, and standard).
+        
+        *ra*
+          String with the right ascension of the target to be found. It can be whole or part (e.g. 13 25 10.3, or 13 25).
+        *dec*
+          String with the declination of the target to be found. It can be whole or part (e.g. +13 25 10.3, or +13 25).
+        *name*
+          String with a known name of the target. it can be whole or part.
+        *dump*
+          Boolean, whether to return output as a Python list. If False, *find_unum* will only print potential matches in terminal window.
+        '''
+        if ra is None and dec is None and name is None:
+            print 'No input provided.'
+            return
+        
+        matches = []
+        for tgt in self.targets:
+            # Match by name
+            if name is not None and tgt.name is not None and tgt.name != '':
+                nmMatch = name.upper()
+                loc = tgt.name.upper().find(nmMatch)
+                if loc != -1:
+                    matches.append(tgt.unum)
+                else:
+                    loc = nmMatch.upper().find(tgt.name.upper())
+                    if loc != -1:
+                        matches.append(tgt.unum)
+            
+            # Match by ra
+            if ra is not None:
+                raMatch = ra.strip()
+                if tgt.ra.startswith(raMatch) or raMatch.startswith(tgt.ra):
+                    matches.append(tgt.unum)
+            
+            # Match by dec
+            if dec is not None:
+                decMatch = dec.strip()
+                if tgt.dec.startswith(decMatch) or decMatch.startswith(tgt.dec):
+                    matches.append(tgt.unum)
+            
+        # Clean up match results
+        if matches != []:
+            matches = list(set(matches)) # Eliminates duplicates
+        else:
+            print 'No matches found.'
+            return
+        
+        # Fetch matches attributes
+        matched = []
+        counter = 1
+        for umatch in matches:
+            matchAtts = self.show_data(umatch, dump=True)
+            matchAtts = matchAtts[:7]
+            if dump:
+                matched.append(matchAtts)
+            else:
+                print '-----Potential match ' + str(counter) + ': -----'
+                counter = counter + 1
+                for row in matchAtts:
+                    print row
+                print ' '
+        
+        return matched
+    
     def get_data(self, unum, ids, errors=True, header=False):
         """
         Return target data from database, specified using the data ids displayed in the output of the *show_data* method. This method acts as a centralized station to get either spectra or photometry of a target, as opposed to using *give_spectrum* or *give_photometry* methods directly.
@@ -884,7 +950,7 @@ class BDNYCData:
         *unum*
            U-number of target (e.g. 'U10000').
         *dump*
-          Boolean, whether to return output as a Python list. If False, show_data will only print existing data identifiers in terminal window.
+          Boolean, whether to return output as a Python list. If False, *show_data* will only print existing data identifiers in terminal window.
         '''
         
         # 1. Initialize variables
