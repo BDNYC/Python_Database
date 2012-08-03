@@ -327,7 +327,10 @@ class BDNYCData:
                                     if errs[bndNum - 1][0] == '\r':
                                         errs[bndNum - 1] = None
                                     else:
-                                        photOK = False
+                                        try:
+                                            errs[bndNum - 1] = float(errs[bndNum - 1])
+                                        except ValueError:
+                                            photOK = False
                         except TypeError:
                             errs.append(None)
                     except TypeError:
