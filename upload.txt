@@ -43,8 +43,7 @@
 #   flux value of band (e.g. 14.1)
 # 16. err_1:
 #   error of flux value (e.g. 0.12); leave blank if unknown
-# You can enter up to three bands in one row (cols 17 to 22)
-# If uploading less than three bands, leave the rest of columns blank,
-# no extra tabs necessary.
+# You can enter up to three bands in one row (cols 17 to 22).
+# If more than one row present, all rows must have same number of columns.
 #
 # unum	name	ra	dec	sptype	standard	rng	res	instr	date	ord_filt	fitsname	survey	band_1	val_1	err_1	band_2	val_2	err_2	band_3	val_3	err_3
