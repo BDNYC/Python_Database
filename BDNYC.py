@@ -803,12 +803,25 @@ class BDNYCData:
             return
         
         # 5. Get spectrum
+        wlKey = ['wl', 'wavelength']
         try:
-            wl = specDict[res][instr][date][ord_filt]['wl']
+            wl = specDict[res][instr][date][ord_filt][wlKey[0]]
         except KeyError:
+            try:
+              wl = specDict[res][instr][date][ord_filt][wlKey[1]]
+            except KeyError:
+              print 'Data requested not found.'
+              return
+        fluxKey = ['flux','fx']
+        try:
+          flux = specDict[res][instr][date][ord_filt][fluxKey[0]]
+        except KeyError:
+          try:
+            flux = specDict[res][instr][date][ord_filt][fluxKey[1]]
+          except KeyError:
             print 'Data requested not found.'
             return
-        flux = specDict[res][instr][date][ord_filt]['flux']
+
         specArr = np.array([wl, flux])
         
         # 6. Include flux errors if requested and available
