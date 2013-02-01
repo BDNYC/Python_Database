@@ -117,7 +117,65 @@ class BDNYCData:
     def __init__(self):
         self.targets = []
     
-    def add_data(self, overwrite=False):
+    # def update_data(self, objDict):
+    #     DB_FILE = 'BDNYCData.txt'
+    #     UP_HEADERS = ('unum','name','ra', 'dec', 'sptype', 'standard',  \
+    #                   'rng', 'res', 'instr', 'date', 'ord_filt', 'fitsname', 'xunits', 'yunits', 'header', \
+    #                   'survey', 'band_1', 'val_1', 'err_1', \
+    #                   'band_2', 'val_2', 'err_2', \
+    #                   'band_3', 'val_3', 'err_3')
+    #     NULL = ''   # Null character in ascii file
+    #     DEL  = '\t' # Delimiter character in ascii file
+    #     COMM = '#'  # Comment character in ascii file
+    #     NUM_BANDS = 3
+    #     
+    #     # Create dictionary with all UP_HEADERS keys and plug in values where applicable
+    #     data = {}.fromkeys(UP_HEADERS)
+    #     for i in objDict.keys():
+    #         for j in data.keys():
+    #             if i == j:
+    #                 data[j] = objDict[i]
+    #     if not data['unum']:
+    #         print "I need a U-number, buddy."
+    #     else:
+    #         if not isinstance(data['unum'],str) and len(data['unum']) != 6 and data['unum'][0] != 'U':
+    #             print "Invalid U-number."
+    #         else:
+    #             unum = data['unum'].upper()
+    #             dbIdx = self.match_unum(unum)
+    #             Tgt = self.targets[dbIdx]
+    #             # Good up to here.
+    #             
+    #             # This doesn't work yet ------------------------------------------------
+    #             for i in data['rng'] or [Tgt.opt,Tgt.nir,Tgt.mir]:
+    #                 for j in data['res'] or ['high','med','low']:
+    #                     if i[j]:
+    #                         for inst in i[j]:
+    #                             date = i[j][inst].keys()
+    #                             print date
+    #                             for d in date:
+    #                                 ord_filt = i[j][inst][date].keys()
+    #                                 i[j][inst][d][ord_filt]['xunits'] = data['xunits']
+    #                                 i[j][inst][d][ord_filt]['yunits'] = data['yunits']
+    #                                 i[j][inst][d][ord_filt]['header'] = data['header']
+    #              # ---------------------------------------------------------------------
+    #     
+    #     # Update the database .txt file
+    #     try:
+    #         f = open(DB_FILE,'rb')
+    #     except IOError:
+    #         print DB_FILE + ' could not be loaded. Check that it is ' + \
+    #               'in the current folder. Process stopped.'
+    #         return
+    #     f.close()
+    #     f = open(DB_FILE,'wb')
+    #     print 'Updating ' + unum + '...'
+    #     pickle.dump(self, f)
+    #     f.close()
+    # 
+    #     print 'Remember to push updated ' + DB_FILE + ' to github.' 
+    
+    def add_data(self, objDict='', overwrite=False):
         """
         Add spectral and/or photometry data for a target. If target does not exist in database, it will create a Target instance automatically using the *add_target* method. The data to upload is read form the *upload.txt* file located in the same folder as the database file in your computer. Read *upload.txt* header for more information.
         
@@ -128,8 +186,8 @@ class BDNYCData:
         # 1. Initialize variables ---------------------------------------------
         DB_FILE = 'BDNYCData.txt'
         UP_FILE = 'upload.txt' # ascii file with upload data
-        UP_HEADERS = ('unum','name','ra', 'dec', 'sptype', 'standard', \
-                      'rng', 'res', 'instr', 'date', 'ord_filt', 'fitsname', \
+        UP_HEADERS = ('unum','name','ra', 'dec', 'sptype', 'standard',  \
+                      'rng', 'res', 'instr', 'date', 'ord_filt', 'fitsname', 'xunits', 'yunits', 'header', \
                       'survey', 'band_1', 'val_1', 'err_1', \
                       'band_2', 'val_2', 'err_2', \
                       'band_3', 'val_3', 'err_3')
@@ -138,39 +196,57 @@ class BDNYCData:
         COMM = '#'  # Comment character in ascii file
         NUM_BANDS = 3
         
-        colNmUnum = UP_HEADERS[0]
-        colNmName = UP_HEADERS[1]
-        colNmRa   = UP_HEADERS[2]
-        colNmDec  = UP_HEADERS[3]
-        colNmSptype = UP_HEADERS[4]
-        colNmStd    = UP_HEADERS[5]
-        colNmRng    = UP_HEADERS[6]
-        colNmRes    = UP_HEADERS[7]
-        colNmInstr  = UP_HEADERS[8]
-        colNmDate   = UP_HEADERS[9]
+        colNmUnum    = UP_HEADERS[0]
+        colNmName    = UP_HEADERS[1]
+        colNmRa      = UP_HEADERS[2]
+        colNmDec     = UP_HEADERS[3]
+        colNmSptype  = UP_HEADERS[4]
+        colNmStd     = UP_HEADERS[5]
+        
+        colNmRng     = UP_HEADERS[6]
+        colNmRes     = UP_HEADERS[7]
+        colNmInstr   = UP_HEADERS[8]
+        colNmDate    = UP_HEADERS[9]
         colNmOrdfilt = UP_HEADERS[10]
-        colNmFits    = UP_HEADERS[11]
-        colNmSurvey  = UP_HEADERS[12]
-        colNmBand1 = UP_HEADERS[13]
-        colNmVal1  = UP_HEADERS[14]
-        colNmErr1  = UP_HEADERS[15]
-        colNmBand2 = UP_HEADERS[16]
-        colNmVal2  = UP_HEADERS[17]
-        colNmErr2  = UP_HEADERS[18]
-        colNmBand3 = UP_HEADERS[19]
-        colNmVal3  = UP_HEADERS[20]
-        colNmErr3  = UP_HEADERS[21]
+        colNmFits    = UP_HEADERS[11]     
+        colNmX       = UP_HEADERS[12]     
+        colNmY       = UP_HEADERS[13]
+        colNmHeader  = UP_HEADERS[14]
+             
+        colNmSurvey  = UP_HEADERS[15]     
+        colNmBand1   = UP_HEADERS[16]
+        colNmVal1    = UP_HEADERS[17]
+        colNmErr1    = UP_HEADERS[18]
+        colNmBand2   = UP_HEADERS[19]
+        colNmVal2    = UP_HEADERS[20]
+        colNmErr2    = UP_HEADERS[21]
+        colNmBand3   = UP_HEADERS[22]
+        colNmVal3    = UP_HEADERS[23]
+        colNmErr3    = UP_HEADERS[24]
         
-        # 2. Load ascii file --------------------------------------------------
-        dataRaw = ad.open(UP_FILE, null=NULL, delimiter=DEL, comment_char=COMM)
-        # Store ascii data in a dictionary-type object
-        data = {}.fromkeys(UP_HEADERS)
-        for colIdx, colData in enumerate(dataRaw):
-            data[UP_HEADERS[colIdx]] = colData.tonumpy()
+        # 2A. Add data for one object via a dictionary using same keys in UP_HEADERS -----------
+        # e.g. objDict = { 'unum': U12345, 'xunits':'um', 'fitsname':'spex_prism_U50171_0835+19_chiu06.fits'}
+        if objDict:
+            data = {}.fromkeys(UP_HEADERS)
+            for i in objDict.keys():
+                for j in data.keys():
+                    if i == j:
+                        data[j] = objDict[i]
+            if not data['unum']:
+                print "I need a U-number, buddy."
+                return
         
-        if data[colNmUnum] is None:
-            print 'Upload file empty.'
-            return
+        # 2B. Or load the ascii file -------------------------------------------
+        else:
+            dataRaw = ad.open(UP_FILE, null=NULL, delimiter=DEL, comment_char=COMM)
+            # Store ascii data in a dictionary-type object
+            data = {}.fromkeys(UP_HEADERS)
+            for colIdx, colData in enumerate(dataRaw):
+                data[UP_HEADERS[colIdx]] = colData.tonumpy()
+        
+            if data[colNmUnum] is None:
+                print 'Upload file empty.'
+                return 
         
         # 3. Upload data to database ------------------------------------------
         somethingAdded = False
@@ -180,14 +256,14 @@ class BDNYCData:
             unum = data[colNmUnum][row].upper()
             try:
                 unum + 0
-                print 'U-number invalid.'
+                print 'U-number {} invalid. unum+0'.format(unum) 
                 continue
             except TypeError:
                 if len(unum) != 6:
-                    print 'U-number invalid.'
+                    print 'U-number {} length invalid. (Line 212)'.format(unum) 
                     continue
                 if unum[0] != 'U':
-                    print 'U-number invalid.'
+                    print 'U-number {} invalid. Does not start with letter U.'.format(unum) 
                     continue
             dbIdx = self.match_unum(unum)
             if dbIdx is None:
@@ -264,12 +340,21 @@ class BDNYCData:
                     if ord_filt == '':
                         print unum + ' Must provide Order/Filter for spectrum.'
                         attsOK = False
+                    xunits = data[colNmX][row]
+                    if xunits == '':
+                        print unum + ' No X units.'
+                    yunits = data[colNmY][row]
+                    if yunits == '':
+                        print unum + ' No Y units.'
+                    header = data[colNmHeader][row]
+                    if not header:
+                        header = None
+                        print unum + ' No FITS header.'
                     
                     # 3.4.4 Create dictionary structure with spectrum data
                     if attsOK:
                         specAdd = True
-                        specDict = {instr:{date:{ord_filt:{'wl':wl, \
-                                                'flux':flux, errNm:errVals}}}}
+                        specDict = {instr:{date:{ord_filt:{'wl':wl, 'flux':flux, errNm:errVals, 'xunits':xunits, 'yunits':yunits, 'header':header}}}}
             
             # 3.5 Get target photometry attributes
             # 3.5.1 Check if photometry data was provided
@@ -348,7 +433,7 @@ class BDNYCData:
                 else:
                     print unum + ' Photometry data invalid.'
             
-           # 3.6 Create range-level dictionary with all data
+            # 3.6 Create range-level dictionary with all data
             if photAdd and specAdd:
                 rngDict = {res:specDict, 'phot':photDict}
             elif photAdd and not specAdd:
@@ -486,6 +571,13 @@ class BDNYCData:
             self.res_initializer(verbose=verbose)
         return
     
+    def browse(self):
+        targs = {}
+        for n,t in enumerate(self.targets):
+            targs[self.targets[n].unum] = self.targets[n].name,  self.targets[n].ra, self.targets[n].dec
+
+        return targs 
+    
     def date_list(self, obsType, res, surv_instr):
         """
         Sort through the dates and list all targets with observations on given 
@@ -575,6 +667,8 @@ class BDNYCData:
         *dump*
           Boolean, whether to return output as a Python list. If False, *find_unum* will only print potential matches in terminal window.
         '''
+        import re
+        
         if ra is None and dec is None and name is None:
             print 'No input provided.'
             return
@@ -583,12 +677,12 @@ class BDNYCData:
         for tgt in self.targets:
             # Match by name
             if name is not None and tgt.name is not None and tgt.name != '':
-                nmMatch = name.upper()
-                loc = tgt.name.upper().find(nmMatch)
+                nmMatch = re.sub('\W','',name).upper()
+                loc = re.sub('\W','',str(tgt.name)).upper().find(nmMatch)
                 if loc != -1:
                     matches.append(tgt.unum)
                 else:
-                    loc = nmMatch.upper().find(tgt.name.upper())
+                    loc = nmMatch.upper().find(re.sub('\W','',tgt.name).upper())
                     if loc != -1:
                         matches.append(tgt.unum)
             
@@ -693,7 +787,7 @@ class BDNYCData:
                         else:
                             data.append(spec)
             if not matched:
-                print 'Id ' + str(idnum) + ' not valid.'
+                # print 'Id ' + str(idnum) + ' not valid.'
                 data.append([])
         
         if len(ids) == 1:
@@ -976,17 +1070,17 @@ class BDNYCData:
         try:
             length = len(unum)
         except TypeError:
-            print 'U-number must be a string.'
+            print 'U-number {} must be a string: '.format(unum)
             return
         
         if length != 6:
-            print 'U-number invalid.'
+            print 'U-number {} length invalid.'.format(unum) 
             return
         
         # 3. Check if target with requested U-number exists
         idxU = self.match_unum(unum, verbose=False)
         if idxU is None:
-            print 'U-number not in database.'
+            print 'U-number {} not in database.'.format(unum) 
             return
         
         else:
